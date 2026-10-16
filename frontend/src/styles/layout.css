@@ -1,4 +1,6 @@
 * { box-sizing: border-box; }
+/* `hidden` always wins over component display rules (flex/grid). */
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -34,13 +36,68 @@ body {
 .banner { padding: var(--space-2) var(--space-4); font-size: var(--text-sm); }
 .banner--error { background: var(--color-danger-soft); color: var(--color-danger); }
 
-.workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: 320px minmax(0, 1fr) 360px; }
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 360px;
+  transition: grid-template-columns 180ms ease;
+}
+.workspace.is-chat-collapsed { grid-template-columns: 48px minmax(0, 1fr) 360px; }
+@media (prefers-reduced-motion: reduce) { .workspace { transition: none; } }
 
 .panel { background: var(--color-surface); padding: var(--space-4); overflow-y: auto; }
 .panel:first-child { border-right: 1px solid var(--color-border); }
 .panel--properties { border-left: 1px solid var(--color-border); }
 .panel__title { margin: 0 0 var(--space-2); font-size: var(--text-lg); font-weight: 600; }
 .panel__hint, .panel__note { margin: 0 0 var(--space-3); color: var(--color-muted); font-size: var(--text-sm); }
+
+.panel__header--row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+/* Stays at the top of the scrolling panel; the negative margins cover the panel padding. */
+.panel__header--sticky {
+  position: sticky;
+  top: calc(-1 * var(--space-4));
+  z-index: 1;
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
+  padding: var(--space-4) var(--space-4) var(--space-1);
+  background: var(--color-surface);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.icon-btn:hover { border-color: var(--color-border); background: var(--color-bg); color: var(--color-ink); }
+.icon-btn:focus-visible, .chat-rail:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+
+.panel--chat { min-width: 0; }
+.workspace.is-chat-collapsed .panel--chat { padding: 0; overflow: hidden; }
+.chat-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  height: 100%;
+  padding: var(--space-4) 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.chat-rail:hover { background: var(--color-bg); color: var(--color-ink); }
+.chat-rail__label { writing-mode: vertical-rl; transform: rotate(180deg); font-weight: 500; letter-spacing: 0.02em; }
 
 .empty-state {
   margin-top: var(--space-5);

@@ -40,7 +40,7 @@ function customColour({ appearance, run, target }) {
 export function appearanceControls({ catalog, appearance, target, run, label }) {
   const material = appearance.material;
   return el('div', { className: 'appearance' }, [
-    el('p', { className: 'appearance__label', text: label }),
+    ...(label ? [el('p', { className: 'appearance__label', text: label })] : []),
     selectField({
       label: 'Material',
       value: material.custom ? '' : material.catalogId,

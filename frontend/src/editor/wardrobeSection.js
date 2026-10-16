@@ -1,8 +1,9 @@
 // Always-visible wardrobe settings: overall dimensions, doors and main materials.
 // Inputs report their own errors inline; buttons/selects report under their section.
 import { appearanceControls } from './appearanceControls.js';
-import { actionResult, cmField, countField, el, section, segmented } from './fields.js';
-import { dimensionOps, doorTypeOps } from './opsFromForm.js';
+import { actionResult, cmField, countField, el, section, segmented, subsection } from './fields.js';
+import { dimensionOps, doorTypeOps, toCmText } from './opsFromForm.js';
+import { appearanceSummary } from './summaries.js';
 
 function dimensionsRow(design, run) {
   const { width, height, depth } = design.dimensions;
@@ -13,29 +14,34 @@ function dimensionsRow(design, run) {
   ]);
 }
 
-export function wardrobeSection({ design, catalog, run }) {
+export function wardrobeSection({ design, catalog, run, ui }) {
   const { doors } = design;
-  const wardrobe = section('Wardrobe', [dimensionsRow(design, run)]);
+  const { width, height, depth } = design.dimensions;
   const runDoors = (ops) => actionResult(wardrobe, run(ops));
-  wardrobe.append(segmented({
-    label: 'Doors',
-    testId: 'door-type',
-    value: doors.type,
-    options: [{ value: 'hinged', label: 'Hinged' }, { value: 'sliding', label: 'Sliding' }, { value: 'none', label: 'None' }],
-    onChange: (type) => runDoors(doorTypeOps(type)),
-  }));
-  if (doors.type === 'sliding') {
-    wardrobe.append(countField({
+  const wardrobe = section('Wardrobe', [
+    dimensionsRow(design, run),
+    segmented({
+      label: 'Doors',
+      testId: 'door-type',
+      value: doors.type,
+      options: [{ value: 'hinged', label: 'Hinged' }, { value: 'sliding', label: 'Sliding' }, { value: 'none', label: 'None' }],
+      onChange: (type) => runDoors(doorTypeOps(type)),
+    }),
+    ...(doors.type === 'sliding' ? [countField({
       label: 'Sliding panels', value: doors.items.length, testId: 'sliding-count',
       onCommit: (count) => run(doorTypeOps('sliding', count)),
-    }));
-  }
+    })] : []),
+  ], { key: 'wardrobe', ui, summary: { text: `${toCmText(width)} × ${toCmText(height)} × ${toCmText(depth)} cm` } });
 
-  const materials = section('Materials', []);
   const runMaterials = (ops) => actionResult(materials, run(ops));
-  materials.append(appearanceControls({ catalog, appearance: design.carcass.appearance, target: 'carcass', run: runMaterials, label: 'Carcass & interior' }));
-  if (doors.type !== 'none') {
-    materials.append(appearanceControls({ catalog, appearance: doors.appearance, target: 'doors', run: runMaterials, label: 'Doors' }));
-  }
+  const targets = [
+    { target: 'carcass', title: 'Carcass & interior', appearance: design.carcass.appearance },
+    ...(doors.type !== 'none' ? [{ target: 'doors', title: 'Doors', appearance: doors.appearance }] : []),
+  ];
+  const materials = section('Materials', targets.map(({ target, title, appearance }) => subsection(title, [
+    appearanceControls({ catalog, appearance, target, run: runMaterials }),
+  ], { key: `materials.${target}`, ui, summary: appearanceSummary(appearance, catalog) })), {
+    key: 'materials', ui, summary: appearanceSummary(design.carcass.appearance, catalog),
+  });
   return [wardrobe, materials];
 }

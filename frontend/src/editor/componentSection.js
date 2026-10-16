@@ -1,6 +1,6 @@
 // Properties of the selected component; only the fields that apply to its kind.
 import { appearanceControls } from './appearanceControls.js';
-import { actionResult, button, cmField, el, section, segmented } from './fields.js';
+import { actionResult, button, cmField, el, segmented } from './fields.js';
 import { addItemOps, clearAppearanceOps, doorHingeOps, removeOps } from './opsFromForm.js';
 import { partitionLeftEdge } from '../domain/geometry.js';
 
@@ -78,15 +78,19 @@ function fieldsFor(kind, { design, catalog, selection, run, runAction }) {
 }
 
 export function componentSection({ design, catalog, selection, run, select }) {
-  const container = section(`Selected · ${TITLES[selection.kind]}`, []);
+  const close = el('button', { className: 'selected-card__close', text: '×', attrs: { type: 'button', 'aria-label': 'Deselect', title: 'Deselect' } });
+  close.addEventListener('click', () => select(null));
+  const container = el('section', { className: 'prop-section selected-card' }, [
+    el('div', { className: 'selected-card__header' }, [el('h3', { className: 'prop-section__title', text: `Selected · ${TITLES[selection.kind]}` }), close]),
+  ]);
   container.dataset.testid = 'selected-section';
   // Inputs report their own errors inline; buttons/selects report under the section.
   const runAction = (ops) => actionResult(container, run(ops));
   container.append(...fieldsFor(selection.kind, { design, catalog, selection, run, runAction }));
-  const actions = [button('Deselect', () => select(null), { variant: 'ghost' })];
   if (selection.kind !== 'carcass') {
-    actions.unshift(button(`Delete ${TITLES[selection.kind].toLowerCase()}`, () => runAction(removeOps(selection.id)), { variant: 'danger', testId: 'delete-selected' }));
+    container.append(el('div', { className: 'button-row' }, [
+      button(`Delete ${TITLES[selection.kind].toLowerCase()}`, () => runAction(removeOps(selection.id)), { variant: 'danger', testId: 'delete-selected' }),
+    ]));
   }
-  container.append(el('div', { className: 'button-row' }, actions));
   return container;
 }

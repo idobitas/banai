@@ -37,7 +37,8 @@ Coordinates: x = 0 at the outer left face, y = 0 at the floor, front face at z =
 |---|---|
 | `opsFromForm.js` | **Pure** form-to-ops mapping (unit-tested): cm text → integer mm (`parseCm`), door, material, hinge, add-item and add-compartment ops, and `friendlyError` (fixed messages that never echo input). |
 | `fields.js` | DOM builders (`el`, `cmField`, `segmented`, `selectField`, `button`). Text goes only through `textContent` / `.value`. |
-| `panel.js` | Re-renders from store state (only when the design or selection changed). The selected-component section comes first, then Wardrobe, Materials and Compartments. |
+| `panel.js` | Re-renders from store state (only when the design or selection changed). The selected-component card comes first, then Wardrobe, Materials and Compartments. It also owns panel-only UI state (see below). |
+| `summaries.js` | **Pure** summary text for collapsed sections (`appearanceSummary`) and the compartment tree (`compartmentItems`, `itemLabel`). Unit-tested. |
 | `*Section.js`, `appearanceControls.js` | Section content per component kind. Catalog swatches and custom colours are visibly distinct ("Custom: name"). |
 
 Editing rules:
@@ -46,6 +47,12 @@ Editing rules:
 - A rejected op (`DomainError`) shows a friendly inline message, and the state is unchanged.
 - Buttons and selects report errors under their section.
 - No LLM is involved in manual editing.
+
+Panel-only UI state is **not** part of the store, because it is not part of the design:
+- **Collapsed sections** live in `panel.js` and persist per viewer in `localStorage` (`banai.panel.collapsed`, only known section keys are accepted). Materials is collapsed by default.
+- **Expanded compartments** (the component tree) live in memory only. A new selection auto-expands its compartment and scrolls the panel to the selected card; edits inside the card do not scroll.
+- **The chat column** collapses to a rail (`main.js`, `banai.chat.collapsed`). It is collapsed by default until Phase 5. The viewer's `ResizeObserver` resizes the canvas.
+- Every storage access is wrapped in try/catch; with storage blocked, the defaults apply.
 
 The visual design follows the Stitch design system documented in `/.stitch/DESIGN.md`.
 

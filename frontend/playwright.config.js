@@ -7,6 +7,8 @@ const WEB_PORT = 5183;
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: false,
+  // Software WebGL (SwiftShader) is CPU-heavy; parallel workers time out on smaller machines.
+  workers: 1,
   retries: 0,
   reporter: [['list']],
   use: {

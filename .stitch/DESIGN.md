@@ -35,6 +35,13 @@ This is a Scandinavian cabinetmaker's atelier turned into a precision desktop to
 - **List rows:** hover fills with the background colour. The selected row gets an 8% accent tint and a 2px left bar.
 - **Selection in 3D:** accent outline plus an accent label tag.
 
+## Panel organization (added after Phase 4, same tokens)
+- **Collapsible sections:** the 11px uppercase section title is a full-width toggle with a hairline chevron. While collapsed it shows a muted one-line summary (for appearances: a 12px colour dot plus `Material · Colour · Finish`). Materials starts collapsed; each appearance target (carcass, doors) is a collapsible sub-group with a dashed hairline divider.
+- **Selected card:** the selected component is always first, framed by a 1px accent border on an 8% accent tint, with a × button to deselect. A new selection scrolls the panel to it.
+- **Component tree:** each compartment row has a chevron that reveals its shelves, drawers and rails (top to bottom) on a hairline left rule. Rows reuse the list-row rules: hover fills with the background colour, selected gets the accent tint and a 2px left bar.
+- **Sticky panel header:** the "Properties" title and hint stay pinned while the panel scrolls.
+- **Chat rail:** the AI column collapses to a 48px rail (icon plus vertical label). Until the agent exists it starts collapsed.
+
 ## Deliberately not implemented
 These parts of the Stitch output are outside the agreed MVP scope:
 - **"Cutlist & cost estimation" bottom shelf:** pricing and manufacturing exports are excluded.

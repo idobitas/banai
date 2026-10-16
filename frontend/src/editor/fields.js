@@ -14,8 +14,44 @@ export function el(tag, { className, text, attrs = {} } = {}, children = []) {
   return node;
 }
 
-export function section(title, children) {
-  return el('section', { className: 'prop-section' }, [el('h3', { className: 'prop-section__title', text: title }), ...children]);
+/**
+ * A panel section. With `collapsible: { key, ui, summary }` the title becomes a toggle button;
+ * `ui.isCollapsed(key)` / `ui.toggle(key)` keep the state outside the DOM (it survives re-renders).
+ * Children appended later (e.g. action errors) stay visible while collapsed.
+ */
+export function section(title, children, collapsible) {
+  if (!collapsible) {
+    return el('section', { className: 'prop-section' }, [el('h3', { className: 'prop-section__title', text: title }), ...children]);
+  }
+  return collapsibleBlock({ tag: 'section', className: 'prop-section', headingClass: 'prop-section__title', title, children, ...collapsible });
+}
+
+/** A nested collapsible group inside a section (e.g. one appearance target). */
+export const subsection = (title, children, collapsible) =>
+  collapsibleBlock({ tag: 'div', className: 'prop-subsection', headingClass: 'prop-subsection__title', title, children, ...collapsible });
+
+function summaryNode({ text, hex }) {
+  const dot = el('span', { className: 'summary__dot', attrs: { 'aria-hidden': 'true' } });
+  if (hex) dot.style.backgroundColor = hex; // a validated #rrggbb from the catalog or the design
+  return el('span', { className: 'summary' }, [...(hex ? [dot] : []), el('span', { className: 'summary__text', text })]);
+}
+
+function collapsibleBlock({ tag, className, headingClass, title, children, key, ui, summary }) {
+  const collapsed = ui.isCollapsed(key);
+  const bodyId = nextId('section');
+  const toggle = el('button', {
+    className: 'collapse-toggle',
+    attrs: { type: 'button', 'aria-expanded': String(!collapsed), 'aria-controls': bodyId, 'data-collapse-key': key },
+  }, [
+    el('span', { className: 'collapse-toggle__chevron', attrs: { 'aria-hidden': 'true' } }),
+    el('span', { className: 'collapse-toggle__title', text: title }),
+    ...(collapsed && summary ? [summaryNode(summary)] : []),
+  ]);
+  toggle.addEventListener('click', () => ui.toggle(key));
+  const body = el('div', { className: 'collapse-body', attrs: { id: bodyId } }, children);
+  body.hidden = collapsed;
+  const heading = el(tag === 'section' ? 'h3' : 'h4', { className: headingClass }, [toggle]);
+  return el(tag, { className: `${className}${collapsed ? ' is-collapsed' : ''}` }, [heading, body]);
 }
 
 /** A labelled input + inline message. `commit(rawText)` returns { ok, error?, message? }. */

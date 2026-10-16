@@ -54,6 +54,7 @@ test.describe('Phase 4: manual editing', () => {
   });
 
   test('changing the carcass colour updates the rendered material', async ({ page }) => {
+    await page.getByRole('button', { name: 'Materials' }).click(); // collapsed by default
     await page.getByRole('button', { name: 'Walnut' }).first().click();
     await expect.poll(() => page.evaluate(() => window.__banai.viewer.meshOf('carcass').material.color.getHexString())).toBe('6b4a32');
   });
@@ -65,6 +66,7 @@ test.describe('Phase 4: manual editing', () => {
   });
 
   test('custom colour names are rendered as text, never as markup', async ({ page }) => {
+    await page.getByRole('button', { name: 'Materials' }).click();
     await page.getByText('Custom colour…').first().click();
     await page.getByLabel('Custom colour name').first().fill('<b>Sage</b>');
     await page.getByRole('button', { name: 'Apply custom colour' }).first().click();
