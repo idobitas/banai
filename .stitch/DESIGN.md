@@ -35,6 +35,19 @@ This is a Scandinavian cabinetmaker's atelier turned into a precision desktop to
 - **List rows:** hover fills with the background colour. The selected row gets an 8% accent tint and a 2px left bar.
 - **Selection in 3D:** accent outline plus an accent label tag.
 
+## Floating layout and motion (added after Phase 4)
+Stitch was **not** used for this change: the Stitch project belongs to another account and returned "permission denied". The layout is built from the existing tokens plus three new ones:
+
+| Token | Value | Role |
+|---|---|---|
+| `--color-surface-float` | `rgba(255,255,255,0.92)` | Floating cards over the 3D view (with a 12px backdrop blur) |
+| `--shadow-float` | two soft layers | The only shadow in the system, for floating cards |
+| `--radius-lg` | `12px` | Floating cards |
+
+- **Full-bleed viewer:** the 3D view fills the workspace. The Properties panel (right) and the AI panel (left) are floating cards; the collapsed AI panel is a pill in the top-left corner. The wardrobe is centred in the area the cards leave free.
+- **View toolbar:** a pill at the bottom centre of the free area with `Front`, `3/4`, `Top` and `Fit`, a hairline divider, and "Show interior". The active view uses the segmented-control style (solid accent, white text).
+- **Motion:** hinged doors swing open about their hinge edge (about 100°) and sliding panels slide toward the nearer end while fading, instead of disappearing (≈450 ms). The camera glides between views and to a new framing after a dimension change (≈600 ms). The AI card scales in (180 ms). `prefers-reduced-motion` makes everything instant.
+
 ## Panel organization (added after Phase 4, same tokens)
 - **Collapsible sections:** the 11px uppercase section title is a full-width toggle with a hairline chevron. While collapsed it shows a muted one-line summary (for appearances: a 12px colour dot plus `Material · Colour · Finish`). Materials starts collapsed; each appearance target (carcass, doors) is a collapsible sub-group with a dashed hairline divider.
 - **Selected card:** the selected component is always first, framed by a 1px accent border on an 8% accent tint, with a × button to deselect. A new selection scrolls the panel to it.

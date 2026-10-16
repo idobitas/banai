@@ -36,19 +36,39 @@ body {
 .banner { padding: var(--space-2) var(--space-4); font-size: var(--text-sm); }
 .banner--error { background: var(--color-danger-soft); color: var(--color-danger); }
 
+/* The 3D view fills the workspace; panels and the toolbar float above it as cards.
+   --inset-left / --inset-right (set by main.js) are the widths the panels cover. */
 .workspace {
+  --inset-left: 0px;
+  --inset-right: 0px;
+  position: relative;
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr) 360px;
-  transition: grid-template-columns 180ms ease;
+  overflow: hidden;
 }
-.workspace.is-chat-collapsed { grid-template-columns: 48px minmax(0, 1fr) 360px; }
-@media (prefers-reduced-motion: reduce) { .workspace { transition: none; } }
 
-.panel { background: var(--color-surface); padding: var(--space-4); overflow-y: auto; }
-.panel:first-child { border-right: 1px solid var(--color-border); }
-.panel--properties { border-left: 1px solid var(--color-border); }
+.float-card {
+  position: absolute;
+  z-index: 2;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-float);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(12px);
+}
+
+.panel { padding: var(--space-4); overflow-y: auto; }
+.panel--properties { top: var(--space-4); right: var(--space-4); bottom: var(--space-4); width: 360px; }
+.panel--chat {
+  top: var(--space-4);
+  left: var(--space-4);
+  bottom: var(--space-4);
+  width: 320px;
+}
+/* Children re-run the animation whenever they are un-hidden (pill <-> card). */
+.panel--chat > * { transform-origin: top left; animation: card-in 180ms ease; }
+@keyframes card-in { from { opacity: 0; transform: scale(0.96); } }
+@media (prefers-reduced-motion: reduce) { .panel--chat > * { animation: none; } }
 .panel__title { margin: 0 0 var(--space-2); font-size: var(--text-lg); font-weight: 600; }
 .panel__hint, .panel__note { margin: 0 0 var(--space-3); color: var(--color-muted); font-size: var(--text-sm); }
 
@@ -60,7 +80,7 @@ body {
   z-index: 1;
   margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
   padding: var(--space-4) var(--space-4) var(--space-1);
-  background: var(--color-surface);
+  background: var(--color-surface-float);
 }
 
 .icon-btn {
@@ -77,27 +97,57 @@ body {
   cursor: pointer;
 }
 .icon-btn:hover { border-color: var(--color-border); background: var(--color-bg); color: var(--color-ink); }
-.icon-btn:focus-visible, .chat-rail:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+.icon-btn:focus-visible, .chat-pill:focus-visible, .tool-btn:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
 
-.panel--chat { min-width: 0; }
-.workspace.is-chat-collapsed .panel--chat { padding: 0; overflow: hidden; }
-.chat-rail {
-  display: flex;
-  flex-direction: column;
+/* Collapsed chat: a small pill in the top-left corner. */
+.workspace.is-chat-collapsed .panel--chat { bottom: auto; width: auto; padding: 0; overflow: visible; border-radius: 999px; }
+.chat-pill {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-  height: 100%;
-  padding: var(--space-4) 0;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
   border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.chat-pill svg { color: var(--color-accent); }
+.chat-pill:hover { background: var(--color-bg); }
+
+/* Floating view toolbar, centred in the area the panels leave free. */
+.viewer-toolbar {
+  bottom: var(--space-4);
+  left: calc(var(--inset-left) + (100% - var(--inset-left) - var(--inset-right)) / 2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  border-radius: 999px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.viewer-toolbar__group { display: flex; gap: 2px; }
+.viewer-toolbar__divider { width: 1px; height: 20px; background: var(--color-border); }
+.tool-btn {
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-ink);
   font: inherit;
   font-size: var(--text-sm);
   cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
 }
-.chat-rail:hover { background: var(--color-bg); color: var(--color-ink); }
-.chat-rail__label { writing-mode: vertical-rl; transform: rotate(180deg); font-weight: 500; letter-spacing: 0.02em; }
+.tool-btn:hover { background: var(--color-bg); }
+.tool-btn[aria-pressed="true"] { background: var(--color-accent); color: #fff; font-weight: 600; }
+.tool-toggle { padding: 0 var(--space-3) 0 var(--space-1); font-size: var(--text-sm); }
 
 .empty-state {
   margin-top: var(--space-5);
@@ -109,7 +159,7 @@ body {
   text-align: center;
 }
 
-.viewer { position: relative; min-width: 0; overflow: hidden; background: var(--color-viewer); }
+.viewer { position: absolute; inset: 0; overflow: hidden; background: var(--color-viewer); }
 .viewer canvas { display: block; }
 .viewer-labels { position: absolute; inset: 0; pointer-events: none; }
 

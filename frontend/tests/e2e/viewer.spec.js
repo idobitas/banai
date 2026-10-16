@@ -21,10 +21,17 @@ test.describe('Phase 3: 3D viewer', () => {
     expect(after).not.toEqual(before);
   });
 
-  test('doors are shown by default and "Show interior" hides them', async ({ page }) => {
-    expect(await page.evaluate(() => Boolean(window.__banai.viewer.meshOf('dr_left')))).toBe(true);
+  test('doors are closed by default and "Show interior" swings them open (and closed again)', async ({ page }) => {
+    const door = () => page.evaluate(() => {
+      const { viewer } = window.__banai;
+      return { openness: viewer.doorOpenness(), rotation: viewer.meshOf('dr_left').rotation.y };
+    });
+    expect(await door()).toEqual({ openness: 0, rotation: 0 });
     await page.getByLabel('Show interior').check();
-    await expect.poll(() => page.evaluate(() => Boolean(window.__banai.viewer.meshOf('dr_left')))).toBe(false);
+    await expect.poll(door).toMatchObject({ openness: 1 });
+    expect((await door()).rotation).toBeLessThan(-1.5); // left hinge swings outward (about -100°)
+    await page.getByLabel('Show interior').uncheck();
+    await expect.poll(door).toEqual({ openness: 0, rotation: 0 });
   });
 
   test('clicking a shelf selects it, highlights it and shows its dimensions', async ({ page }) => {
@@ -38,8 +45,9 @@ test.describe('Phase 3: 3D viewer', () => {
   test('clicking a door selects the door; clicking empty space clears the selection', async ({ page }) => {
     await clickComponent(page, 'dr_middle');
     expect(await selection(page)).toEqual({ id: 'dr_middle', kind: 'door' });
+    // Empty sky above the wardrobe (the top-left corner now holds the AI pill).
     const box = await page.locator('#viewer canvas').boundingBox();
-    await page.mouse.click(box.x + 10, box.y + 10);
+    await page.mouse.click(box.x + box.width * 0.4, box.y + 12);
     expect(await selection(page)).toBeNull();
   });
 

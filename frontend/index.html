@@ -10,16 +10,14 @@
     <header class="topbar">
       <h1 class="topbar__title">BanAI <span>Wardrobe Designer</span></h1>
       <div class="topbar__actions">
-        <label class="toggle">
-          <input type="checkbox" id="toggle-interior" />
-          <span>Show interior</span>
-        </label>
         <span class="topbar__units">cm</span>
       </div>
     </header>
     <div class="banner banner--error" id="error-banner" role="alert" hidden></div>
     <main class="workspace">
-      <aside class="panel panel--chat" id="chat-panel" aria-label="AI designer">
+      <!-- The 3D view fills the workspace; the panels and the toolbar float above it. -->
+      <section class="viewer" id="viewer" aria-label="3D viewer"></section>
+      <aside class="panel float-card panel--chat" id="chat-panel" aria-label="AI designer">
         <div class="panel__header panel__header--row" id="chat-header">
           <h2 class="panel__title">AI Designer</h2>
           <button type="button" class="icon-btn" id="chat-collapse" aria-controls="chat-body" aria-expanded="true" aria-label="Collapse AI designer" title="Collapse">
@@ -30,19 +28,31 @@
           <p class="panel__note">Describe the wardrobe you want, and the agent will propose changes for you to confirm.</p>
           <div class="empty-state">The conversational design agent is not connected yet (planned for Phase 5). You can design manually in the Properties panel.</div>
         </div>
-        <button type="button" class="chat-rail" id="chat-expand" aria-controls="chat-body" aria-expanded="false" aria-label="Expand AI designer" title="Expand AI designer" hidden>
+        <button type="button" class="chat-pill" id="chat-expand" aria-controls="chat-body" aria-expanded="false" aria-label="Expand AI designer" title="Expand AI designer" hidden>
           <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-          <span class="chat-rail__label">AI Designer</span>
+          <span>AI Designer</span>
         </button>
       </aside>
-      <section class="viewer" id="viewer" aria-label="3D viewer"></section>
-      <aside class="panel panel--properties" id="properties-panel" aria-label="Properties">
+      <aside class="panel float-card panel--properties" id="properties-panel" aria-label="Properties">
         <div class="panel__header panel__header--sticky">
           <h2 class="panel__title">Properties</h2>
           <p class="panel__hint">Click a component in the 3D view, or pick one from Compartments, to edit it.</p>
         </div>
         <div id="properties-content"></div>
       </aside>
+      <div class="viewer-toolbar float-card" id="viewer-toolbar" role="toolbar" aria-label="View">
+        <div class="viewer-toolbar__group" role="group" aria-label="Camera">
+          <button type="button" class="tool-btn" data-view="front" aria-pressed="false">Front</button>
+          <button type="button" class="tool-btn" data-view="angle" aria-pressed="true">3/4</button>
+          <button type="button" class="tool-btn" data-view="top" aria-pressed="false">Top</button>
+          <button type="button" class="tool-btn" id="view-fit" title="Fit the wardrobe in view">Fit</button>
+        </div>
+        <span class="viewer-toolbar__divider" aria-hidden="true"></span>
+        <label class="toggle tool-toggle">
+          <input type="checkbox" id="toggle-interior" />
+          <span>Show interior</span>
+        </label>
+      </div>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>

@@ -2,6 +2,18 @@ import { clickComponent, expect, openDesigner, selection, test } from './fixture
 
 const canvasWidth = async (page) => (await page.locator('#viewer canvas').boundingBox()).width;
 
+/** Horizontal distance (px) between the projected orbit target and the centre of the free area. */
+const wardrobeCentreOffset = (page) => page.evaluate(() => {
+  const { viewer } = window.__banai;
+  const rect = viewer.canvas.getBoundingClientRect();
+  const projected = viewer.controls.target.clone().project(viewer.camera);
+  const x = rect.left + ((projected.x + 1) / 2) * rect.width;
+  const style = getComputedStyle(document.querySelector('.workspace'));
+  const left = parseFloat(style.getPropertyValue('--inset-left'));
+  const right = parseFloat(style.getPropertyValue('--inset-right'));
+  return x - (rect.left + left + (rect.width - left - right) / 2);
+});
+
 test.describe('Panel organization and layout', () => {
   test.beforeEach(async ({ page }) => openDesigner(page));
 
@@ -46,22 +58,26 @@ test.describe('Panel organization and layout', () => {
     expect(await selection(page)).toBeNull();
   });
 
-  test('the AI column starts collapsed, expanding it narrows the canvas, and the choice is remembered', async ({ page }) => {
+  test('the AI panel starts as a pill, expands to a card over the full-width canvas, and is remembered', async ({ page }) => {
     const expand = page.getByRole('button', { name: 'Expand AI designer' });
+    const emptyState = page.getByText('The conversational design agent is not connected yet', { exact: false });
     await expect(expand).toBeVisible();
-    await expect(page.getByText('The conversational design agent is not connected yet', { exact: false })).toBeHidden();
-    const collapsedWidth = await canvasWidth(page);
+    await expect(emptyState).toBeHidden();
+    const fullWidth = await canvasWidth(page);
+    const freeCentre = await wardrobeCentreOffset(page);
+    expect(Math.abs(freeCentre)).toBeLessThan(40);
 
     await expand.click();
-    await expect(page.getByText('The conversational design agent is not connected yet', { exact: false })).toBeVisible();
+    await expect(emptyState).toBeVisible();
     await expect(page.getByRole('button', { name: 'Collapse AI designer' })).toBeFocused();
-    await expect.poll(() => canvasWidth(page)).toBeLessThan(collapsedWidth - 200);
+    expect(await canvasWidth(page)).toBe(fullWidth); // the canvas stays full width under the cards
+    await expect.poll(() => wardrobeCentreOffset(page).then(Math.abs)).toBeLessThan(40); // re-centred in the new free area
 
     await page.reload();
     await page.waitForFunction(() => window.__banai?.viewer.meshOf('shf_l1'));
     await expect(page.getByRole('button', { name: 'Collapse AI designer' })).toBeVisible();
     await page.getByRole('button', { name: 'Collapse AI designer' }).click();
-    await expect.poll(() => canvasWidth(page)).toBeCloseTo(collapsedWidth, -1);
+    await expect(expand).toBeVisible();
   });
 
   test('the properties panel never scrolls the page', async ({ page }) => {

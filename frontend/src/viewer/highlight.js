@@ -12,19 +12,32 @@ export function createHighlighter(scene) {
   scene.add(layer);
   const material = new THREE.LineBasicMaterial({ color: ACCENT, depthTest: false, transparent: true });
 
+  // Outlines of animated meshes (doors) follow their mesh every frame.
+  let followed = [];
+
   const outline = (geometry, position) => {
     const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), material);
     lines.position.copy(position);
     lines.renderOrder = 10;
     layer.add(lines);
+    return lines;
   };
 
   const clear = () => {
     layer.children.forEach((child) => child.geometry.dispose());
     layer.clear();
+    followed = [];
   };
 
   return {
+    /** Call once per frame: keeps outlines on moving meshes. */
+    follow() {
+      followed.forEach(([lines, mesh]) => {
+        lines.position.copy(mesh.position);
+        lines.quaternion.copy(mesh.quaternion);
+        lines.visible = mesh.visible;
+      });
+    },
     update(group, design, selection) {
       clear();
       if (!group || !selection) return;
@@ -39,7 +52,7 @@ export function createHighlighter(scene) {
       }
       group.children
         .filter((mesh) => mesh.userData.componentId === selection.id)
-        .forEach((mesh) => outline(mesh.geometry, mesh.position));
+        .forEach((mesh) => followed.push([outline(mesh.geometry, mesh.position), mesh]));
     },
     dispose() {
       clear();

@@ -22,7 +22,14 @@ export async function openDesigner(page) {
 
 export const selection = (page) => page.evaluate(() => window.__banai.store.getState().selection);
 
+/** Doors finished swinging/sliding: openness reached the target set by the store's door visibility. */
+export const doorsSettled = (page) => page.waitForFunction(() => {
+  const { store, viewer } = window.__banai;
+  return viewer.doorOpenness() === (store.getState().ui.doorsVisible ? 0 : 1);
+});
+
 export async function clickComponent(page, componentId) {
+  await doorsSettled(page);
   await page.waitForFunction(() => {
     const { camera } = window.__banai.viewer;
     const key = camera.position.toArray().map((v) => v.toFixed(5)).join();

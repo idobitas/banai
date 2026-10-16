@@ -24,7 +24,8 @@ main.js (boot) ── api/client.js ──► GET /api/catalog, /api/designs/def
 | `buildWardrobe.js` + `builders/*` | Pure `design → THREE.Group`, with no DOM or WebGL, so it is unit-tested in Node. Every mesh has `userData { componentId, kind }`. |
 | `units.js` | mm → m (×0.001), plus **visual-only** prototype constants (back panel 6 mm, door thickness 18 mm, gaps, rail radius). These are not part of the design model. |
 | `materials.js` | Appearance → `MeshStandardMaterial` (catalog hex, or custom hex; finish → roughness), cached per distinct appearance. |
-| `viewer.js` | Renderer (`preserveDrawingBuffer` for the Phase 8 capture), camera, OrbitControls, store subscription, and `screenPointOf` / `meshOf` helpers. |
+| `viewer.js` | Renderer (`preserveDrawingBuffer` for the Phase 8 capture), camera, OrbitControls, store subscription, and `screenPointOf` / `meshOf` helpers. Doors are always built; `ui.doorsVisible` sets a target **openness** (0 closed, 1 open) that is animated, not rebuilt. `setView` / `fit` glide the camera; a user drag cancels the glide and clears the named view. `setInsets` shifts the projection centre (`camera.setViewOffset`) so the wardrobe sits in the area the floating panels leave free. |
+| `motion.js` | **Pure** motion maths (unit-tested): easing, `doorPose` (hinged swing about the hinge edge, sliding slide + fade), `viewPose` (front / 3/4 / top framing), `createTween` with injected time. Durations are visual-only constants. |
 | `picking.js` | Click → raycast → `store.select`. A drag (>5 px) is an orbit, not a click. A hit on the back panel selects the compartment under the cursor. |
 | `highlight.js` | Always-on-top accent outline. A compartment outlines its interior volume. |
 | `dimensions.js`, `format.js` | CSS2D labels for W/H/D and the selected component. Text is written with `textContent` only. Units are shown in cm with 1 decimal. |
@@ -51,7 +52,7 @@ Editing rules:
 Panel-only UI state is **not** part of the store, because it is not part of the design:
 - **Collapsed sections** live in `panel.js` and persist per viewer in `localStorage` (`banai.panel.collapsed`, only known section keys are accepted). Materials is collapsed by default.
 - **Expanded compartments** (the component tree) live in memory only. A new selection auto-expands its compartment and scrolls the panel to the selected card; edits inside the card do not scroll.
-- **The chat column** collapses to a rail (`main.js`, `banai.chat.collapsed`). It is collapsed by default until Phase 5. The viewer's `ResizeObserver` resizes the canvas.
+- **The chat panel** collapses to a pill (`main.js`, `banai.chat.collapsed`). It is collapsed by default until Phase 5. `main.js` measures the floating panels and passes the covered widths to the viewer (`setInsets`) and to CSS (`--inset-left` / `--inset-right`, used to centre the toolbar).
 - Every storage access is wrapped in try/catch; with storage blocked, the defaults apply.
 
 The visual design follows the Stitch design system documented in `/.stitch/DESIGN.md`.

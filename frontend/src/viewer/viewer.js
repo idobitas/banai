@@ -1,6 +1,7 @@
 // Interactive Three.js viewer. Renders ONLY from store state: it rebuilds the wardrobe
-// whenever the committed design (or door visibility) changes, and never edits state
-// except through store.select().
+// whenever the committed design changes, and never edits state except through
+// store.select(). Door visibility is animated (doors swing or slide open) rather than
+// rebuilt, and the camera glides between named views (see motion.js).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
@@ -9,8 +10,10 @@ import { frameOf } from './builders/frame.js';
 import { createDimensions } from './dimensions.js';
 import { createHighlighter } from './highlight.js';
 import { createMaterials } from './materials.js';
+import { createTween, doorPose, isView, MOTION, stepToward, viewPose } from './motion.js';
 import { attachPicking } from './picking.js';
-import { toM } from './units.js';
+
+const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 const BACKGROUND = '#eceeec';
 
@@ -41,7 +44,7 @@ function componentAt(hit, design) {
   return index >= 0 ? design.compartments[index].id : componentId;
 }
 
-export function createViewer(container, store) {
+export function createViewer(container, store, { onViewChange = () => {} } = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -61,32 +64,81 @@ export function createViewer(container, store) {
   const highlighter = createHighlighter(scene);
   const dimensions = createDimensions(scene);
   let group = null;
-  let rendered = { design: null, doorsVisible: null, selection: undefined, dimsKey: null };
+  let rendered = { design: null, selection: undefined, dimsKey: null };
 
-  const fitCamera = (design) => {
-    const { width, height, depth } = design.dimensions;
-    const center = new THREE.Vector3(toM(width / 2), toM(height / 2), toM(-depth / 2));
-    const distance = (toM(Math.max(width, height)) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)))) * 1.35;
-    camera.position.set(center.x + distance * 0.35, center.y + distance * 0.12, distance);
-    controls.target.copy(center);
-    controls.update();
+  // --- Camera: named views, glided with a tween; a user drag cancels the glide. ---
+  let view = 'angle';
+  let cameraTween = null;
+  const applyCamera = ({ position, target }) => {
+    camera.position.fromArray(position);
+    controls.target.fromArray(target);
+  };
+  const goTo = (name, { animate = true } = {}) => {
+    view = name;
+    const to = viewPose(store.getState().design, name, camera.fov);
+    if (!animate || prefersReducedMotion()) {
+      cameraTween = null;
+      applyCamera(to);
+      controls.update();
+    } else {
+      const from = { position: camera.position.toArray(), target: controls.target.toArray() };
+      cameraTween = createTween({ from, to, durationMs: MOTION.cameraDurationMs, startMs: performance.now() });
+    }
+    onViewChange(view);
+  };
+  controls.addEventListener('start', () => {
+    cameraTween = null;
+    if (view !== null) {
+      view = null; // a free orbit no longer matches a named view
+      onViewChange(view);
+    }
+  });
+
+  // --- Doors: always built; opened by animating `openness` toward 0 (closed) or 1 (open). ---
+  let doorOpenness = store.getState().ui.doorsVisible ? 0 : 1;
+  let doorTarget = doorOpenness;
+  let doorMeshes = [];
+  let fadeMaterials = [];
+  const poseDoors = () => {
+    doorMeshes.forEach((mesh) => {
+      const pose = doorPose(mesh.userData.motion, doorOpenness);
+      mesh.position.fromArray(pose.position);
+      mesh.rotation.y = pose.rotationY;
+      mesh.visible = pose.visible;
+      if (mesh.material.transparent) mesh.material.opacity = pose.opacity;
+    });
+  };
+  const adoptDoors = () => {
+    fadeMaterials.forEach((material) => material.dispose());
+    fadeMaterials = [];
+    doorMeshes = group.children.filter((mesh) => mesh.userData.kind === 'door');
+    // Sliding panels fade, so each gets its own transparent copy (cached materials are shared).
+    doorMeshes.filter((mesh) => mesh.userData.motion.type === 'sliding').forEach((mesh) => {
+      mesh.material = mesh.material.clone();
+      mesh.material.transparent = true;
+      fadeMaterials.push(mesh.material);
+    });
+    poseDoors();
   };
 
   const sync = (state) => {
     const { design, ui, selection } = state;
-    const geometryChanged = design !== rendered.design || ui.doorsVisible !== rendered.doorsVisible;
+    const geometryChanged = design !== rendered.design;
+    doorTarget = ui.doorsVisible ? 0 : 1;
+    if (prefersReducedMotion()) doorOpenness = doorTarget;
     if (geometryChanged) {
       if (group) {
         scene.remove(group);
         disposeWardrobe(group);
       }
-      group = buildWardrobe(design, materials, { doorsVisible: ui.doorsVisible });
+      group = buildWardrobe(design, materials, { doorsVisible: true });
       scene.add(group);
       materials.retainOnly(new Set(group.children.map((mesh) => mesh.material)));
+      adoptDoors();
       const { width, height, depth } = design.dimensions;
       const dimsKey = `${width}x${height}x${depth}`;
-      if (dimsKey !== rendered.dimsKey) fitCamera(design);
-      rendered = { ...rendered, design, doorsVisible: ui.doorsVisible, dimsKey };
+      if (dimsKey !== rendered.dimsKey) goTo(view ?? 'angle', { animate: rendered.dimsKey !== null });
+      rendered = { ...rendered, design, dimsKey };
     }
     if (geometryChanged || selection !== rendered.selection) {
       highlighter.update(group, design, selection);
@@ -95,11 +147,14 @@ export function createViewer(container, store) {
     }
   };
 
+  // Floating panels cover the canvas edges: shift the projection centre into the free area.
+  let insets = { left: 0, right: 0 };
   const resize = () => {
     const { clientWidth, clientHeight } = container;
     renderer.setSize(clientWidth, clientHeight);
     labels.setSize(clientWidth, clientHeight);
     camera.aspect = clientWidth / Math.max(clientHeight, 1);
+    camera.setViewOffset(clientWidth, Math.max(clientHeight, 1), (insets.right - insets.left) / 2, 0, clientWidth, Math.max(clientHeight, 1));
     camera.updateProjectionMatrix();
   };
   const resizeObserver = new ResizeObserver(resize);
@@ -109,14 +164,28 @@ export function createViewer(container, store) {
   const detachPicking = attachPicking({
     dom: renderer.domElement,
     camera,
-    getTargets: () => (group ? group.children : []),
+    getTargets: () => (group ? group.children.filter((mesh) => mesh.visible) : []),
     onPick: (hit) => store.select(componentAt(hit, store.getState().design)),
   });
   const unsubscribe = store.subscribe(sync);
   sync(store.getState());
 
+  let lastFrame = performance.now();
   renderer.setAnimationLoop(() => {
+    const now = performance.now();
+    const dt = Math.min(now - lastFrame, 100); // a background tab must not jump a whole animation
+    lastFrame = now;
+    if (doorOpenness !== doorTarget) {
+      doorOpenness = stepToward(doorOpenness, doorTarget, dt, MOTION.doorDurationMs);
+      poseDoors();
+    }
+    if (cameraTween) {
+      const { value, done } = cameraTween.at(now);
+      applyCamera(value);
+      if (done) cameraTween = null;
+    }
     controls.update();
+    highlighter.follow();
     renderer.render(scene, camera);
     labels.render(scene, camera);
   });
@@ -125,6 +194,20 @@ export function createViewer(container, store) {
     camera,
     controls,
     canvas: renderer.domElement,
+    /** Glide to a named view ('front' | 'angle' | 'top'); fit() re-frames the current one. */
+    setView(name) {
+      if (isView(name)) goTo(name);
+    },
+    fit: () => goTo(view ?? 'angle'),
+    get view() {
+      return view;
+    },
+    /** Pixels covered by floating panels on each side of the canvas. */
+    setInsets(next) {
+      insets = { left: Math.max(0, next.left), right: Math.max(0, next.right) };
+      resize();
+    },
+    doorOpenness: () => doorOpenness,
     meshOf: (componentId) => group?.children.find((mesh) => mesh.userData.componentId === componentId) ?? null,
     /** Client (page) coordinates of a component's centre, for tests and tooling. */
     screenPointOf(componentId) {
@@ -140,6 +223,7 @@ export function createViewer(container, store) {
       detachPicking();
       resizeObserver.disconnect();
       if (group) disposeWardrobe(group);
+      fadeMaterials.forEach((material) => material.dispose());
       highlighter.dispose();
       dimensions.dispose();
       materials.dispose();
