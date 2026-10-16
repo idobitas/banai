@@ -12,6 +12,9 @@ import { createViewer } from './viewer/viewer.js';
 import { createChatModel } from './chat/chatModel.js';
 import { createLanguage } from './chat/i18n.js';
 import { mountChat } from './chat/chatPanel.js';
+import { createRecorder } from './voice/recorder.js';
+import { createSpeaker } from './voice/speaker.js';
+import { speak, transcribe } from './voice/voiceApi.js';
 import { mountStartScreen } from './entry/startScreen.js';
 import { createSaveDialog } from './share/saveDialog.js';
 import { createRenderDialog } from './render/renderDialog.js';
@@ -87,7 +90,11 @@ async function boot() {
       applying = false;
     }
   };
-  const chat = mountChat(document.getElementById('chat-panel'), { model: chatModel, onConfirm: confirmProposal, language });
+  // Voice (chained STT -> agent -> TTS) uses the same OpenAI key, so it is offered with the agent.
+  const voice = agent
+    ? { recorder: createRecorder(), transcribe, speaker: createSpeaker({ speak }) }
+    : null;
+  const chat = mountChat(document.getElementById('chat-panel'), { model: chatModel, onConfirm: confirmProposal, language, voice });
   // A manual edit changes the revision, which may turn a pending proposal stale.
   store.subscribe(() => chat.refresh());
 

@@ -26,11 +26,91 @@ function languageSwitch(language, t) {
   return group;
 }
 
-export function mountChat(container, { model, onConfirm, language = createLanguage() }) {
+const formatSeconds = (ms) => {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+/**
+ * `voice` (optional) = { recorder, transcribe, speaker } enables the chained voice pipeline:
+ * a recording is transcribed into the composer and sent through the normal submit (so language
+ * switching and the agent flow are unchanged); new designer replies can be read aloud.
+ */
+export function mountChat(container, { model, onConfirm, language = createLanguage(), voice = null }) {
   container.classList.add('panel--chat');
   let draft = '';
   let hintKey = null; // a localized placeholder chosen on the start screen
   let view = null;
+  // Voice state lives outside build(), so a language switch never interrupts a recording.
+  let voiceState = 'idle'; // 'idle' | 'recording' | 'transcribing'
+  let voiceError = null; // a key of t.voice.errors
+  let recordingSince = 0;
+  let tick = null;
+  let lastSpokenId = model.getMessages().at(-1)?.id ?? 0; // never read out what was already there
+
+  function renderVoice() {
+    if (!view?.mic) return;
+    const { t, mic, voiceStatus, voiceText, voiceCancel, speakToggle } = view;
+    const recording = voiceState === 'recording';
+    mic.replaceChildren(icon(recording ? 'stop' : 'mic'));
+    mic.setAttribute('aria-label', recording ? t.voice.stop : t.voice.record);
+    mic.setAttribute('aria-pressed', String(recording));
+    mic.classList.toggle('is-recording', recording);
+    mic.disabled = voiceState === 'transcribing' || (!recording && model.isBusy());
+    voiceCancel.hidden = !recording;
+    const text = recording ? `${t.voice.recording} ${formatSeconds(Date.now() - recordingSince)}`
+      : voiceState === 'transcribing' ? t.voice.transcribing
+        : voiceError ? t.voice.errors[voiceError] : '';
+    voiceText.textContent = text;
+    voiceStatus.hidden = !text;
+    voiceStatus.classList.toggle('is-error', voiceState === 'idle' && Boolean(voiceError));
+    const speaking = voice.speaker.isEnabled();
+    speakToggle.replaceChildren(icon(speaking ? 'volume' : 'volumeOff', { size: 18 }));
+    speakToggle.setAttribute('aria-pressed', String(speaking));
+    speakToggle.setAttribute('aria-label', speaking ? t.voice.speakOn : t.voice.speakOff);
+    speakToggle.title = speaking ? t.voice.speakOn : t.voice.speakOff;
+  }
+
+  function setVoice(state, error = null) {
+    voiceState = state;
+    voiceError = error;
+    clearInterval(tick);
+    tick = state === 'recording' ? setInterval(renderVoice, 250) : null;
+    renderVoice();
+  }
+
+  async function record() {
+    voice.speaker.stop(); // don't record the designer's own voice
+    recordingSince = Date.now();
+    setVoice('recording');
+    let blob;
+    try {
+      blob = await voice.recorder.start();
+    } catch (error) {
+      setVoice('idle', error?.reason === 'denied' ? 'denied' : 'unsupported');
+      return;
+    }
+    if (!blob) {
+      setVoice('idle'); // cancelled
+      return;
+    }
+    setVoice('transcribing');
+    try {
+      const { text } = await voice.transcribe(blob, language.get());
+      setVoice('idle');
+      view.input.value = text;
+      draft = text;
+      view.submit(); // the normal path: may switch the chat language, then sends
+    } catch (error) {
+      setVoice('idle', error?.code === 'NO_SPEECH' ? 'noSpeech' : error?.status === 429 ? 'rateLimited' : 'failed');
+    }
+  }
+
+  function speakNewReplies(messages) {
+    messages.filter((m) => m.id > lastSpokenId && m.role === 'assistant')
+      .forEach((m) => voice.speaker.say(m.text, m.language));
+    lastSpokenId = Math.max(lastSpokenId, messages.at(-1)?.id ?? 0);
+  }
 
   function build() {
     const t = language.strings();
@@ -54,7 +134,29 @@ export function mountChat(container, { model, onConfirm, language = createLangua
     input.addEventListener('input', () => { draft = input.value; });
     const sendButton = el('button', { className: 'icon-btn icon-btn--filled chat__send', attrs: { type: 'submit', 'aria-label': t.send } }, [icon('send')]);
     sendButton.dataset.testid = 'chat-send';
-    const composer = el('form', { className: 'chat__composer' }, [input, sendButton]);
+    const voiceControls = {};
+    if (voice) {
+      const mic = el('button', { className: 'icon-btn chat__mic', attrs: { type: 'button', title: t.voice.privacy } });
+      mic.dataset.testid = 'chat-mic';
+      mic.addEventListener('click', () => {
+        if (voiceState === 'recording') voice.recorder.stop();
+        else if (voiceState === 'idle') record();
+      });
+      const voiceText = el('span', { className: 'chat__voice-text', attrs: { role: 'status', 'aria-live': 'polite' } });
+      const voiceCancel = el('button', { className: 'btn btn--ghost chat__voice-cancel', text: t.voice.cancel, attrs: { type: 'button' } });
+      voiceCancel.dataset.testid = 'chat-mic-cancel';
+      voiceCancel.addEventListener('click', () => voice.recorder.cancel());
+      const voiceStatus = el('div', { className: 'chat__voice' }, [el('span', { className: 'chat__voice-dot', attrs: { 'aria-hidden': 'true' } }), voiceText, voiceCancel]);
+      voiceStatus.dataset.testid = 'chat-voice-status';
+      const speakToggle = el('button', { className: 'icon-btn chat__speak', attrs: { type: 'button' } });
+      speakToggle.dataset.testid = 'chat-speak';
+      speakToggle.addEventListener('click', () => {
+        voice.speaker.setEnabled(!voice.speaker.isEnabled());
+        renderVoice();
+      });
+      Object.assign(voiceControls, { mic, voiceStatus, voiceText, voiceCancel, speakToggle });
+    }
+    const composer = el('form', { className: 'chat__composer' }, [input, ...(voice ? [voiceControls.mic] : []), sendButton]);
     const hint = el('p', { className: 'chat__hint', text: t.hint });
 
     const chips = t.suggestions.map((text) => {
@@ -110,9 +212,11 @@ export function mountChat(container, { model, onConfirm, language = createLangua
       }
     });
 
-    const footerRow = el('div', { className: 'chat__footer-row' }, [hint, languageSwitch(language, t)]);
-    container.replaceChildren(header, el('div', { className: 'chat__body' }, [welcome, list, proposalSlot]), el('div', { className: 'chat__footer' }, [composer, footerRow]));
-    view = { t, input, sendButton, composer, welcome, list, proposalSlot, typing, submit, renderedCount: 0, renderedProposalKey: null };
+    const footerRow = el('div', { className: 'chat__footer-row' }, [hint, ...(voice ? [voiceControls.speakToggle] : []), languageSwitch(language, t)]);
+    const footer = el('div', { className: 'chat__footer' }, [...(voice ? [voiceControls.voiceStatus] : []), composer, footerRow]);
+    container.replaceChildren(header, el('div', { className: 'chat__body' }, [welcome, list, proposalSlot]), footer);
+    view = { t, input, sendButton, composer, welcome, list, proposalSlot, typing, submit, renderedCount: 0, renderedProposalKey: null, ...voiceControls };
+    renderVoice();
   }
 
   function render() {
@@ -138,6 +242,10 @@ export function mountChat(container, { model, onConfirm, language = createLangua
       list.append(bubble);
     });
     view.renderedCount = messages.length;
+    if (voice) {
+      speakNewReplies(messages);
+      renderVoice(); // the mic is unavailable while the designer is answering
+    }
     const busy = model.isBusy();
     typing.hidden = !busy;
     if (busy) list.append(typing); // keep the indicator last, under the newest message
