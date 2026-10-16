@@ -24,7 +24,9 @@ export default defineConfig({
       command: `uv run uvicorn app.main:app --port ${API_PORT}`,
       cwd: '../backend',
       url: `http://localhost:${API_PORT}/api/health`,
-      env: { APP_ENV: 'e2e', CORS_ORIGINS: `http://localhost:${WEB_PORT}` },
+      // APP_ENV=e2e swaps OpenAI for a scripted agent (no cost, deterministic). The signing key
+      // below is a test-only value, never used outside E2E.
+      env: { APP_ENV: 'e2e', CORS_ORIGINS: `http://localhost:${WEB_PORT}`, PROPOSAL_SIGNING_KEY: 'e2e-only-signing-key' },
       reuseExistingServer: false,
       timeout: 60_000,
     },

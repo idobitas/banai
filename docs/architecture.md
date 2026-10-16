@@ -82,6 +82,8 @@ Revision and persistence metadata (`revision`, `designId`) stay **outside** the 
 6. **Cancel** discards the proposal on the client only, and a "cancelled" note goes into the chat history.
 7. Any manual edit made while a proposal is pending bumps the revision. The card then shows "design changed – ask agent to re-propose".
 
+Implemented in Phase 5 with one tool (`propose_changes`) instead of one tool per op category: the tool's `ops` schema is derived from the domain op union. Details, persona and limits: `docs/agent.md`.
+
 ## 6. API contracts (FastAPI, Pydantic, `{success, data, error}` envelope)
 | Method | Route | Purpose |
 |---|---|---|

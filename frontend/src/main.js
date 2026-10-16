@@ -5,11 +5,11 @@ import '@fontsource/dm-sans/400.css';
 import '@fontsource/dm-sans/500.css';
 import '@fontsource/dm-sans/600.css';
 import '@fontsource/dm-sans/700.css';
-import { getCatalog, getDefaultDesign } from './api/client.js';
+import { applyProposal, getCatalog, getDefaultDesign, postChat } from './api/client.js';
 import { createStore } from './state/store.js';
 import { mountPanel } from './editor/panel.js';
 import { createViewer } from './viewer/viewer.js';
-import { createChatModel } from './chat/chatModel.js';
+import { createChatModel, STALE_MESSAGE } from './chat/chatModel.js';
 import { mountChat } from './chat/chatPanel.js';
 import { mountStartScreen } from './entry/startScreen.js';
 import { createSaveDialog } from './share/saveDialog.js';
@@ -54,12 +54,25 @@ async function boot() {
   mountPanel(document.getElementById('properties-content'), store);
   bindDialogs();
 
-  const chatModel = createChatModel({ getRevision: () => store.getState().revision });
-  // The agent is not connected yet, so a proposal can only come from the dev-only demo below.
-  const chat = mountChat(document.getElementById('chat-panel'), {
-    model: chatModel,
-    onConfirm: () => chatModel.resolveProposal('The AI agent is not connected yet, so nothing was applied.'),
-  });
+  // The agent always sees the latest committed design and revision with each message.
+  const agent = (history) => {
+    const { design, revision } = store.getState();
+    return postChat({ messages: history, design, revision });
+  };
+  const chatModel = createChatModel({ getRevision: () => store.getState().revision, agent });
+  // Confirm: the server verifies the signed proposal, rejects it if the design changed (409),
+  // and applies it on the authoritative engine. Only then is the result committed here.
+  const confirmProposal = async (proposal) => {
+    const { design, revision } = store.getState();
+    try {
+      const result = await applyProposal({ design, revision, proposal: proposal.signed });
+      store.replaceDesign(result.design, result.revision);
+      chatModel.resolveProposal('Applied to your design.');
+    } catch (error) {
+      chatModel.resolveProposal(error?.code === 'STALE' ? STALE_MESSAGE : 'The proposal could not be applied. No changes were made.');
+    }
+  };
+  const chat = mountChat(document.getElementById('chat-panel'), { model: chatModel, onConfirm: confirmProposal });
   // A manual edit changes the revision, which may turn a pending proposal stale.
   store.subscribe(() => chat.refresh());
 

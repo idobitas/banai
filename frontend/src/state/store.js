@@ -67,6 +67,19 @@ export function createStore({ design, revision = 1, catalog }) {
       return { ok: true };
     },
 
+    /**
+     * Commit a design computed by the server (an approved AI proposal). It is re-validated
+     * here exactly like the initial design; invalid data throws and the state is unchanged.
+     */
+    replaceDesign(design, revision) {
+      const next = applyOps(design, [], state.catalog);
+      if (!Number.isInteger(revision) || revision <= state.revision) {
+        throw new DomainError('SCHEMA_INVALID', 'revision', 'invalid revision');
+      }
+      const selection = state.selection && resolveSelection(next, state.selection.id);
+      commit({ design: next, revision, selection });
+    },
+
     select(id) {
       const selection = id === null ? null : resolveSelection(state.design, id);
       const hideDoors = selection !== null && INTERIOR_KINDS.has(selection.kind) && state.ui.doorsVisible;
