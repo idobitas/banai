@@ -31,7 +31,7 @@ This is a Scandinavian cabinetmaker's atelier turned into a precision desktop to
   - Ghost: transparent.
   - Focus: 2px offset accent outline.
 - **Segmented controls:** the active option is a solid accent fill with white text.
-- **Swatches:** 40px squares, 6px radius. The selected swatch has a 2px accent border and a 2px white inner margin.
+- **Swatches:** 40px squares, 6px radius. The selected swatch has a 2px accent border and a 2px white inner margin. Wood colours add faint CSS grain streaks over the colour so they read as wood before they are applied.
 - **List rows:** hover fills with the background colour. The selected row gets an 8% accent tint and a 2px left bar.
 - **Selection in 3D:** accent outline plus an accent label tag.
 

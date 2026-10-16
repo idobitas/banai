@@ -127,4 +127,4 @@ These live in `defaults.py` / `defaults.js` and are mirrored on both sides:
 - the default appearance (melamine, white, matte)
 - the basic wardrobe (`shared/fixtures/designs/basic.json`): 2000×2400×600 with 3 compartments and hinged doors
 
-The catalog contents (`catalog.json`) are placeholder prototype data.
+The catalog contents (`catalog.json`) are placeholder prototype data. A colour entry may carry `"grain": "wood"`: a display hint for the renderer (wood-grain texture and swatch), ignored by the domain engine.

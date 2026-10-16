@@ -19,9 +19,32 @@ export function frameOf(design) {
   };
 }
 
+/**
+ * Rewrite a BoxGeometry's UVs in metres, with u along each face's long side. Textures
+ * (wood grain) then keep a real-world scale and run lengthwise on every panel.
+ * BoxGeometry faces, 4 vertices each: +x, -x (depth x height), +y, -y (width x depth),
+ * +z, -z (width x height).
+ */
+export function scaleBoxUvs(geometry, [w, h, d]) {
+  const uv = geometry.getAttribute('uv');
+  const faces = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+  faces.forEach(([U, V], face) => {
+    for (let k = 0; k < 4; k += 1) {
+      const i = face * 4 + k;
+      const u = uv.getX(i) * U;
+      const v = uv.getY(i) * V;
+      if (V > U) uv.setXY(i, v, u);
+      else uv.setXY(i, u, v);
+    }
+  });
+  uv.needsUpdate = true;
+  return geometry;
+}
+
 /** A box mesh from a size and centre given in millimetres. */
 export function box({ size: [w, h, d], center: [x, y, z], material, userData }) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(toM(w), toM(h), toM(d)), material);
+  const metres = [toM(w), toM(h), toM(d)];
+  const mesh = new THREE.Mesh(scaleBoxUvs(new THREE.BoxGeometry(...metres), metres), material);
   mesh.position.set(toM(x), toM(y), toM(z));
   mesh.userData = { ...userData };
   return mesh;

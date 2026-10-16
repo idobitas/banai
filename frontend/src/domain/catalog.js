@@ -13,7 +13,8 @@ const entry = z.object({
 });
 const catalogSchema = z.object({
   materials: z.array(entry).max(100),
-  colors: z.array(entry.extend({ hex: z.string().regex(HEX) })).max(100),
+  // `grain` is a display hint only (the renderer adds a wood texture); the domain ignores it.
+  colors: z.array(entry.extend({ hex: z.string().regex(HEX), grain: z.enum(['wood']).optional() })).max(100),
   finishes: z.array(entry).max(100),
 });
 

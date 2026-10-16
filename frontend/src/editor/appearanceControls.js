@@ -9,7 +9,7 @@ function swatches({ catalog, appearance, run, target }) {
   const row = el('div', { className: 'swatches', attrs: { role: 'group', 'aria-label': 'Colour' } });
   catalog.colors.forEach((color) => {
     const swatch = el('button', {
-      className: 'swatch',
+      className: color.grain === 'wood' ? 'swatch swatch--wood' : 'swatch',
       attrs: { type: 'button', title: color.name, 'aria-label': color.name, 'aria-pressed': String(isCatalog(appearance.color, color.id)) },
     });
     swatch.style.backgroundColor = color.hex; // validated #rrggbb from the parsed catalog

@@ -10,8 +10,14 @@
     { "id": "light_grey", "name": "Light grey", "hex": "#c9c8c4" },
     { "id": "anthracite", "name": "Anthracite", "hex": "#3b3d40" },
     { "id": "black", "name": "Black", "hex": "#1d1d1f" },
-    { "id": "natural_oak", "name": "Natural oak", "hex": "#c49a6c" },
-    { "id": "walnut", "name": "Walnut", "hex": "#6b4a32" }
+    { "id": "ash", "name": "Ash", "hex": "#e3d4b6", "grain": "wood" },
+    { "id": "light_oak", "name": "Light oak", "hex": "#d9bf94", "grain": "wood" },
+    { "id": "natural_oak", "name": "Natural oak", "hex": "#c49a6c", "grain": "wood" },
+    { "id": "teak", "name": "Teak", "hex": "#a8703f", "grain": "wood" },
+    { "id": "cherry", "name": "Cherry", "hex": "#9a5537", "grain": "wood" },
+    { "id": "smoked_oak", "name": "Smoked oak", "hex": "#8b6b4e", "grain": "wood" },
+    { "id": "walnut", "name": "Walnut", "hex": "#6b4a32", "grain": "wood" },
+    { "id": "wenge", "name": "Wenge", "hex": "#3f2d24", "grain": "wood" }
   ],
   "finishes": [
     { "id": "matte", "name": "Matte" },

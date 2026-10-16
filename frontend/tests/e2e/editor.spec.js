@@ -59,6 +59,17 @@ test.describe('Phase 4: manual editing', () => {
     await expect.poll(() => page.evaluate(() => window.__banai.viewer.meshOf('carcass').material.color.getHexString())).toBe('6b4a32');
   });
 
+  test('wood colours render with a grain texture; solid colours stay plain', async ({ page }) => {
+    const carcassMap = () => page.evaluate(() => Boolean(window.__banai.viewer.meshOf('carcass').material.map));
+    expect(await carcassMap()).toBe(false); // white by default
+    await page.getByRole('button', { name: 'Materials' }).click();
+    await expect(page.getByRole('button', { name: 'Teak' }).first()).toHaveClass(/swatch--wood/);
+    await page.getByRole('button', { name: 'Teak' }).first().click();
+    await expect.poll(carcassMap).toBe(true);
+    await page.getByRole('button', { name: 'Anthracite' }).first().click();
+    await expect.poll(carcassMap).toBe(false);
+  });
+
   test('switching to sliding doors rebuilds the doors', async ({ page }) => {
     await page.getByTestId('door-type').getByRole('button', { name: 'Sliding' }).click();
     await expect.poll(async () => (await state(page)).design.doors.type).toBe('sliding');
